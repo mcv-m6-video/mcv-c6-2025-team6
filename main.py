@@ -287,31 +287,15 @@ if __name__ == "__main__":
     # Load pred bboxes
     pred_boxes_per_frame = load_boxes_from_txt("output/bbox_results.txt")
 
-
     # Create masks for bounding boxes of GT and Pred
-    filename_gt = "output/gt_masks_per_frame.pkl"
-    if os.path.exists(filename_gt):
-        with open(filename_gt, "rb") as f:
-            gt_masks_per_frame = pickle.load(f)
-    else:
-        image_width, image_height = 1920, 1080
-        gt_masks_per_frame = {frame_id: [create_mask_from_bbox(image_width, image_height, bbox, frame_id, idx, dataset='gt') for idx, bbox in enumerate(boxes)] 
-                        for frame_id, boxes in gt_boxes_per_frame.items()}
-        with open(filename_gt, "wb") as f:
-            pickle.dump(gt_masks_per_frame, f)
-
+    image_width, image_height = 1920, 1080
+    gt_masks_per_frame = {frame_id: [create_mask_from_bbox(image_width, image_height, bbox, frame_id, idx, dataset='gt') for idx, bbox in enumerate(boxes)] 
+                    for frame_id, boxes in gt_boxes_per_frame.items()}
     
-    filename_pred = "output/pred_masks_per_frame.pkl"
-    if os.path.exists(filename_pred):
-        with open(filename_pred, "rb") as f:
-            pred_masks_per_frame = pickle.load(f)
-    else:
-        image_width, image_height = 1920, 1080
-        pred_masks_per_frame = {frame_id: [create_mask_from_bbox(image_width, image_height, bbox, frame_id, idx) for idx, bbox in enumerate(boxes)] 
-                                for frame_id, boxes in pred_boxes_per_frame.items()}
-        with open(filename_pred, "wb") as f:
-            pickle.dump(pred_masks_per_frame, f)
-
+    image_width, image_height = 1920, 1080
+    pred_masks_per_frame = {frame_id: [create_mask_from_bbox(image_width, image_height, bbox, frame_id, idx) for idx, bbox in enumerate(boxes)] 
+                            for frame_id, boxes in pred_boxes_per_frame.items()}
+                            
     aps = []
     start_frame = int(len(gt_masks_per_frame)*0.25)
     # Calc AP for each frame comparing predictions with GT
