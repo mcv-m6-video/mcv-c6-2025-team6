@@ -3,6 +3,7 @@ import json
 import os
 import numpy as np
 import xml.etree.ElementTree as ET
+import itertools
 
 def extract_frames(video_path, output_folder, fps=10):
     os.makedirs(output_folder, exist_ok=True)
@@ -96,6 +97,24 @@ def binaryMaskIOU(mask1, mask2):
     iou = intersection/(union)
     return iou
 
+def compute_ap_permuted(gt_boxes, pred_boxes):
+    # With 5 or less bboxes, we do all possible permutations
+    if len(pred_boxes) <= 5:
+        all_aps = []
+        for permuted_pred_boxes in itertools.permutations(pred_boxes):
+            ap = compute_ap(gt_boxes, list(permuted_pred_boxes))
+            all_aps.append(ap)
+    else:
+        # For more than 5 bboxes we do till 120 random permutations
+        N = 120
+        all_aps = []
+        for _ in range(N):
+            np.random.shuffle(pred_boxes) # Generate random order
+            ap = compute_ap(gt_boxes, pred_boxes)  # Calcu AP with actual order
+            all_aps.append(ap)
+
+    return np.mean(all_aps)  # Mean over all permutations
+
 def compute_ap(gt_boxes, pred_boxes):
     '''
     Extracted from Team6-2024 (https://github.com/mcv-m6-video/mcv-c6-2024-team6/blob/main/W1/task1/utils.py).
@@ -104,40 +123,41 @@ def compute_ap(gt_boxes, pred_boxes):
     tp = np.zeros(len(pred_boxes))
     fp = np.zeros(len(pred_boxes))
     gt_matched = np.zeros(len(gt_boxes))
-    if len(pred_boxes) == 0 and len(gt_boxes) == 0:
-        return 1.
 
-    # Iterate over the predicted boxes
-    for i, pred_box in enumerate(pred_boxes):
-        ious = [binaryMaskIOU(pred_box, gt_box) for gt_box in gt_boxes]
-        if len(ious) == 0:
-            fp[i] = 1
-            continue
-        max_iou = max(ious)
-        max_iou_idx = ious.index(max_iou)
-        # print(f"IoU: {max_iou}")
-        if max_iou >= 0.5 and not gt_matched[max_iou_idx]:
-            tp[i] = 1
-            gt_matched[max_iou_idx] = 1
-        else:
-            fp[i] = 1
+    if len(gt_boxes) == 0:
+        ap = 0
+    else:
+        # Iterate over the predicted boxes
+        for i, pred_box in enumerate(pred_boxes):
+            ious = [binaryMaskIOU(pred_box, gt_box) for gt_box in gt_boxes]
+            if len(ious) == 0:
+                fp[i] = 1
+                continue
+            max_iou = max(ious)
+            max_iou_idx = ious.index(max_iou)
+            # print(f"IoU: {max_iou}")
+            if max_iou >= 0.5 and not gt_matched[max_iou_idx]:
+                tp[i] = 1
+                gt_matched[max_iou_idx] = 1
+            else:
+                fp[i] = 1
 
-    tp = np.cumsum(tp)
-    fp = np.cumsum(fp)
-    recall = tp / len(gt_boxes)
-    precision = tp / (tp + fp)
+        tp = np.cumsum(tp)
+        fp = np.cumsum(fp)
+        recall = tp / len(gt_boxes)
+        precision = tp / (tp + fp)
+        # Generate graph with the 11-point interpolated precision-recall curve
+        recall_interp = np.linspace(0, 1, 11)
+        precision_interp = np.zeros(11)
+        for i, r in enumerate(recall_interp):
+            array_precision = precision[recall >= r]
+            if len(array_precision) == 0:
+                precision_interp[i] = 0
+            else:
+                precision_interp[i] = max(precision[recall >= r])
 
-    # Generate graph with the 11-point interpolated precision-recall curve
-    recall_interp = np.linspace(0, 1, 11)
-    precision_interp = np.zeros(11)
-    for i, r in enumerate(recall_interp):
-        array_precision = precision[recall >= r]
-        if len(array_precision) == 0:
-            precision_interp[i] = 0
-        else:
-            precision_interp[i] = max(precision[recall >= r])
+        ap = np.mean(precision_interp)
 
-    ap = np.mean(precision_interp)
     return ap
 
 def create_mask_from_bbox(width, height, bbox, frame_id, obj_idx, dataset=None):

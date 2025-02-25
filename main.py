@@ -80,8 +80,8 @@ def segment_foreground(image_folder, mean, variance, gt_boxes_per_frame, alpha=2
 
     previous_bboxes = []
     bbox_id_counter = 1
-
-    output_txt = open(os.path.join(output_dir, f"bbox_results-alph_{alpha}-eps_{eps}-ms_{min_samples}-adaptive_{adaptive_segmentation}.txt"), "w")
+    bbox_results = f"bbox_results-alph_{alpha}-eps_{eps}-ms_{min_samples}-adaptive_{adaptive_segmentation}.txt"
+    output_txt = open(os.path.join(output_dir, bbox_results), "w")
 
     for img_file in tqdm(sample_images, desc="Processing Images", unit="image"):
         img_path = os.path.join(image_folder, img_file)
@@ -274,7 +274,7 @@ def segment_foreground(image_folder, mean, variance, gt_boxes_per_frame, alpha=2
     video_writer.release()
     output_txt.close()
     print("Processing completed.")
-    print(f"Video saved in {output_video} and bbox results saved in bbox_results.txt")
+    print(f"Video saved in {output_video} and bbox results saved in {bbox_results}")
 
 if __name__ == "__main__":
     # extract_frames("AICity_data/train/S03/c010/vdo.avi", "frames_output", fps=10)
@@ -283,7 +283,7 @@ if __name__ == "__main__":
 
     alpha_values = [4]
     eps_values = [150]
-    adaptive_options = [True, False]
+    adaptive_options = [True]
     margins_overlap = [15]
     min_areas = [2000]
 
@@ -320,7 +320,7 @@ if __name__ == "__main__":
             aps = []
             start_frame = int(len(gt_masks_per_frame)*0.25)
             # Calc AP for each frame comparing predictions with GT
-            for frame_id in gt_boxes_per_frame.keys():
+            for frame_id in tqdm(gt_boxes_per_frame.keys(), desc="Processing frames APs", position=0, leave=True):
                 if frame_id < start_frame:
                     continue
                 
@@ -332,12 +332,12 @@ if __name__ == "__main__":
                     pred_masks = []
                 
                 if len(gt_masks) > 0 or len(pred_masks) > 0:
-                    ap = compute_ap(gt_masks, pred_masks)
+                    ap = compute_ap_permuted(gt_masks, pred_masks)
                     aps.append(ap)
                     # print(f"AP para el frame {frame_id}: {ap}")
             
             # Calculate mAP
             mAP = calculate_mAP(aps)
-            print(f"mAP para alpha={alpha}, eps={eps}, adaptive_segmentation={adaptive_segmentation}: {mAP}\n")
-            f.write(f"mAP para alpha={alpha}, eps={eps}, adaptive_segmentation={adaptive_segmentation}: {mAP}\n")
+            print(f"mAP = {mAP} (alpha={alpha}, eps={eps}, adaptive_segmentation={adaptive_segmentation})\n")
+            f.write(f"mAP = {mAP} (alpha={alpha}, eps={eps}, adaptive_segmentation={adaptive_segmentation})\n")
 
