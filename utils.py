@@ -98,15 +98,15 @@ def binaryMaskIOU(mask1, mask2):
     return iou
 
 def compute_ap_permuted(gt_boxes, pred_boxes):
-    # With 5 or less bboxes, we do all possible permutations
-    if len(pred_boxes) <= 5:
+    # With 3 or less bboxes, we do all possible permutations
+    if len(pred_boxes) <= 3:
         all_aps = []
         for permuted_pred_boxes in itertools.permutations(pred_boxes):
             ap = compute_ap(gt_boxes, list(permuted_pred_boxes))
             all_aps.append(ap)
     else:
-        # For more than 5 bboxes we do till 120 random permutations
-        N = 120
+        # For more than 3 bboxes we do till 10 random permutations
+        N = 10
         all_aps = []
         for _ in range(N):
             np.random.shuffle(pred_boxes) # Generate random order
@@ -178,7 +178,7 @@ def create_mask_from_bbox(width, height, bbox, frame_id, obj_idx, dataset=None):
 
     mask[int(y):int(y + h), int(x):int(x + w)] = 255
     
-    cv2.imwrite(os.path.join(output_dir_bboxes_masks, f"bboxes_masks_{frame_id}_{obj_idx}.jpg"), mask)
+    # cv2.imwrite(os.path.join(output_dir_bboxes_masks, f"bboxes_masks_{frame_id}_{obj_idx}.jpg"), mask)
 
     return mask
 

@@ -75,12 +75,12 @@ def segment_foreground(image_folder, mean, variance, gt_boxes_per_frame, alpha=2
     os.makedirs(output_dir_masks, exist_ok=True)
 
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    output_video = os.path.join(output_dir_videos, f"video_bbox-alph_{alpha}-eps_{eps}-ms_{min_samples}-adaptive_{adaptive_segmentation}.avi")
+    output_video = os.path.join(output_dir_videos, f"video_bbox-alph_{alpha}-eps_{eps}-mov_{margin_overlap}-ma_{min_area}-adaptive_{adaptive_segmentation}.avi")
     video_writer = cv2.VideoWriter(output_video, fourcc, 20.0, (width, height))
 
     previous_bboxes = []
     bbox_id_counter = 1
-    bbox_results = f"bbox_results-alph_{alpha}-eps_{eps}-ms_{min_samples}-adaptive_{adaptive_segmentation}.txt"
+    bbox_results = f"bbox_results-alph_{alpha}-eps_{eps}-mov_{margin_overlap}-ma_{min_area}-adaptive_{adaptive_segmentation}.txt"
     output_txt = open(os.path.join(output_dir, bbox_results), "w")
 
     for img_file in tqdm(sample_images, desc="Processing Images", unit="image"):
@@ -259,10 +259,10 @@ def segment_foreground(image_folder, mean, variance, gt_boxes_per_frame, alpha=2
                 cv2.rectangle(final_mask, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
                 cv2.putText(final_mask, f'ID: {bbox_id}', (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
         
-        cv2.imwrite(os.path.join(output_dir_clusters, f"clusters_detected_{img_file}"), img)
-        cv2.imwrite(os.path.join(output_dir_masks, f"clusters_detected_{img_file}"), final_mask)
+        # cv2.imwrite(os.path.join(output_dir_clusters, f"clusters_detected_{img_file}"), img)
+        # cv2.imwrite(os.path.join(output_dir_masks, f"clusters_detected_{img_file}"), final_mask)
         
-        for gt_bbox in gt_boxes_per_frame[int(frame_id_str)]:
+        for gt_bbox in gt_boxes_per_frame[int(frame_id_str)-1]:
             x1, y1, w, h = gt_bbox
             x2, y2 = x1 + w, y1 + h
             cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)  # Azul para GT
@@ -306,7 +306,8 @@ if __name__ == "__main__":
             segment_foreground("frames_output", mean, variance, gt_boxes_per_frame, alpha=alpha, eps=eps, min_samples=1, adaptive_segmentation=adaptive_segmentation, margin_overlap=margin_overlap, min_area=min_area)
 
             # Load pred bboxes
-            pred_boxes_per_frame = load_boxes_from_txt("output/bbox_results.txt")
+            bbox_results = f"bbox_results-alph_{alpha}-eps_{eps}-mov_{margin_overlap}-ma_{min_area}-adaptive_{adaptive_segmentation}.txt"
+            pred_boxes_per_frame = load_boxes_from_txt(os.path.join("output", bbox_results))
 
             # Create masks for bounding boxes of GT and Pred
             image_width, image_height = 1920, 1080
