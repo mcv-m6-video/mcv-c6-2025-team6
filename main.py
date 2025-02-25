@@ -13,48 +13,93 @@ import itertools
 def load_mean_variance(save_path):
     if os.path.exists(save_path):
         with open(save_path, "rb") as f:
-            mean, variance = pickle.load(f)
+            mean, variance, mean_s, mean_v = pickle.load(f)
         print("Cargando mean y variance desde el archivo guardado.")
-        return mean, variance
+        return mean, variance, mean_s, mean_v
     else:
         return None, None
     
 def compute_mean_variance(image_folder):
-    image_files = [f for f in os.listdir(image_folder) if f.endswith(('.jpg'))]
+    """
+    Calculates the mean and variance of pixel values in grayscale,
+    as well as the mean of the S and V channels in the HSV color space.
+
+    Args:
+
+    image_folder (str): Path to the folder containing images.
+    Returns:
+
+    tuple: (mean, variance, mean_s, mean_v).
+    """
+    image_files = [f for f in os.listdir(image_folder) if f.endswith('.jpg')]
     num_images = len(image_files)
     sample_size = int(25 * num_images / 100)
     sample_images = image_files[:sample_size]
-    pixel_values = []
-    
+
+    pixel_values_gray = []
+    pixel_values_s = []
+    pixel_values_v = []
+
     for img_file in sample_images:
         img_path = os.path.join(image_folder, img_file)
         img = cv2.imread(img_path)
-        
+
         if img is not None:
             img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            pixel_values.append(img_gray.flatten())
-    
-    pixel_values = np.array(pixel_values)
-    
-    mean = np.mean(pixel_values, axis=0).reshape(img_gray.shape)
-    variance = np.var(pixel_values, axis=0).reshape(img_gray.shape)
-    print(f"Mean: {mean}")
-    print(f"Variance: {variance}") 
+            img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+            _, s, v = cv2.split(img_hsv)
 
-    with open('mean_variance.pkl', "wb") as f:
-        pickle.dump((mean, variance), f)
-    
-    return mean, variance
+            pixel_values_gray.append(img_gray.flatten())
+            pixel_values_s.append(s.flatten())
+            pixel_values_v.append(v.flatten())
 
-def update_background_model(img_gray, mean, variance, background_mask, rho=0.05):
+    pixel_values_gray = np.array(pixel_values_gray)
+    pixel_values_s = np.array(pixel_values_s)
+    pixel_values_v = np.array(pixel_values_v)
+
+    mean = np.mean(pixel_values_gray, axis=0).reshape(img_gray.shape)
+    variance = np.var(pixel_values_gray, axis=0).reshape(img_gray.shape)
+    mean_s = np.mean(pixel_values_s, axis=0).reshape(img_gray.shape)
+    mean_v = np.mean(pixel_values_v, axis=0).reshape(img_gray.shape)
+
+    print(f"Mean (Grayscale): {mean}")
+    print(f"Variance (Grayscale): {variance}")
+    print(f"Mean S (HSV): {mean_s}")
+    print(f"Mean V (HSV): {mean_v}")
+
+    with open('output/mean_variance.pkl', "wb") as f:
+        pickle.dump((mean, variance, mean_s, mean_v), f)
+
+    return mean, variance, mean_s, mean_v
+
+def update_background_model(img_gray, img_s, img_v, mean, variance, mean_s, mean_v, background_mask, rho=0.05):
     """
-    Actualiza la media y varianza de fondo solo en los píxeles clasificados como fondo.
+    Updates the background mean and variance for the grayscale channel (Gray)
+    and the S and V channels in the HSV color space, only for pixels classified as background.
+
+    Args:
+        img_gray (np.array): Grayscale image.
+        img_s (np.array): S channel of the HSV image.
+        img_v (np.array): V channel of the HSV image.
+        mean (np.array): Background mean in grayscale.
+        variance (np.array): Background variance in grayscale.
+        mean_s (np.array): Background mean in the S channel.
+        mean_v (np.array): Background mean in the V channel.
+        background_mask (np.array): Boolean mask where True indicates background.
+        rho (float): Learning rate.
+
+    Returns:
+        tuple: (mean, variance, mean_s, mean_v) updated.
     """
     mean[background_mask] = rho * img_gray[background_mask] + (1 - rho) * mean[background_mask]
     variance[background_mask] = rho * (img_gray[background_mask] - mean[background_mask]) ** 2 + (1 - rho) * variance[background_mask]
-    return mean, variance
 
-def segment_foreground(image_folder, mean, variance, gt_boxes_per_frame, alpha=2.5, eps=50, min_samples=3, adaptive_segmentation=False, margin_overlap=15, min_area=2000):
+    mean_s[background_mask] = rho * img_s[background_mask] + (1 - rho) * mean_s[background_mask]
+    mean_v[background_mask] = rho * img_v[background_mask] + (1 - rho) * mean_v[background_mask]
+
+    return mean, variance, mean_s, mean_v
+
+def segment_foreground(image_folder, mean, variance, mean_s, mean_v, gt_boxes_per_frame, alpha=2.5, eps=50, min_samples=3, adaptive_segmentation=False, margin_overlap=15, min_area=2000):
     image_files = [f for f in os.listdir(image_folder) if f.endswith('.jpg')]
     num_images = len(image_files)
     sample_size = int(25 * num_images / 100)
@@ -69,9 +114,9 @@ def segment_foreground(image_folder, mean, variance, gt_boxes_per_frame, alpha=2
     os.makedirs(output_dir, exist_ok=True)
     output_dir_videos = os.path.join(output_dir, "videos")
     os.makedirs(output_dir_videos, exist_ok=True)
-    output_dir_clusters = os.path.join(output_dir, "bboxes_clusters")
+    output_dir_clusters = os.path.join(output_dir, f"bboxes_clusters_-alph_{alpha}-eps_{eps}-mov_{margin_overlap}-ma_{min_area}-adaptive_{adaptive_segmentation}")
     os.makedirs(output_dir_clusters, exist_ok=True)
-    output_dir_masks = os.path.join(output_dir, "masks")
+    output_dir_masks = os.path.join(output_dir, f"masks_-alph_{alpha}-eps_{eps}-mov_{margin_overlap}-ma_{min_area}-adaptive_{adaptive_segmentation}")
     os.makedirs(output_dir_masks, exist_ok=True)
 
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
@@ -95,21 +140,18 @@ def segment_foreground(image_folder, mean, variance, gt_boxes_per_frame, alpha=2
         # 1. Shadow detection
         img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         h, s, v = cv2.split(img_hsv)
-        bd = (v / (s + 1e-6)).astype(np.float32)
-        cd = np.abs(img_gray - mean)
-        # Filter shadows and highlightings
-        shadow_mask = (cd >= 10) & (bd > 5) & (bd < 12)
-        # Combined mask
-        exclusion_mask = shadow_mask
+        SD = np.abs(s - mean_s) / (mean_s + 1e-6)
+        BD = v / (mean_v + 1e-6)
+        shadow_mask = (SD <= 3) & (0.4 <= BD) & (BD <= 0.9)
 
         # 2. Foreground segmentation
         foreground_mask = np.abs(img_gray - mean) >= alpha * (np.sqrt(variance) + 2)
         if adaptive_segmentation:
             background_mask = ~foreground_mask
-            mean, variance = update_background_model(img_gray, mean, variance, background_mask)
+            mean, variance, mean_s, mean_v = update_background_model(img_gray, s, v, mean, variance, mean_s, mean_v, background_mask)
 
         # Apply shadow mask
-        foreground_mask[exclusion_mask] = 0
+        foreground_mask[shadow_mask] = 0
 
         # 3. Connected Components + Filter by Size
         num_labels, labeled_image, stats, _ = cv2.connectedComponentsWithStats(foreground_mask.astype(np.uint8), connectivity=8)
@@ -121,7 +163,7 @@ def segment_foreground(image_folder, mean, variance, gt_boxes_per_frame, alpha=2
         redilated_mask = cv2.dilate(filtered_mask, kernel, iterations=2)
 
         # 5. Connected Components + Filter by Size
-        num_labels_redilated, labeled_image_redilated, stats_redilated, _ = cv2.connectedComponentsWithStats(foreground_mask.astype(np.uint8), connectivity=8)
+        num_labels_redilated, labeled_image_redilated, stats_redilated, _ = cv2.connectedComponentsWithStats(redilated_mask.astype(np.uint8), connectivity=8)
         filtered_labels_redilated = [i for i in range(1, num_labels_redilated) if stats_redilated[i, cv2.CC_STAT_AREA] > 500]
         final_mask = np.isin(labeled_image_redilated, filtered_labels_redilated).astype(np.uint8)
 
@@ -168,6 +210,7 @@ def segment_foreground(image_folder, mean, variance, gt_boxes_per_frame, alpha=2
         for label_id in filtered_labels_redilated:
             colored_components[labeled_image_redilated == label_id] = color
 
+        frame_id_str = (img_file.split('.')[0]).split('_')[1]
         # 8. Final filtering of bboxes
         if bbox_list:
             bbox_list = np.array(bbox_list)
@@ -246,7 +289,6 @@ def segment_foreground(image_folder, mean, variance, gt_boxes_per_frame, alpha=2
                     bbox_id_counter += 1
 
                 current_bboxes.append([x1_min, y1_min, x2_max, y2_max, assigned_id])
-                frame_id_str = (img_file.split('.')[0]).split('_')[1]
                 output_txt.write(f"{frame_id_str},{assigned_id},{int(x1_min)},{int(y1_min)},{int(x2_max)-int(x1_min)},{int(y2_max)-int(y1_min)},-1,-1,-1,-1\n")
 
             previous_bboxes = current_bboxes
@@ -254,7 +296,7 @@ def segment_foreground(image_folder, mean, variance, gt_boxes_per_frame, alpha=2
             for bbox in current_bboxes:
                 x1, y1, x2, y2, bbox_id = bbox
                 cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
-                cv2.putText(img, f'ID: {bbox_id}', (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
+                cv2.putText(img, f'ID: {bbox_id}', (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                 
                 cv2.rectangle(final_mask, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
                 cv2.putText(final_mask, f'ID: {bbox_id}', (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
@@ -279,20 +321,20 @@ def segment_foreground(image_folder, mean, variance, gt_boxes_per_frame, alpha=2
 if __name__ == "__main__":
     # extract_frames("AICity_data/train/S03/c010/vdo.avi", "frames_output", fps=10)
 
-    mean, variance = pickle.load(open("mean_variance.pkl", "rb"))
+    mean, variance, mean_s, mean_v = pickle.load(open("output/mean_variance.pkl", "rb"))
 
-    alpha_values = [4]
-    eps_values = [150]
+    alpha_values = [6]
+    eps_values = [80]
     adaptive_options = [True]
-    margins_overlap = [15]
-    min_areas = [2000]
+    margins_overlap = [10]
+    min_areas = [3500]
 
     results_file = "output/results.txt"
     os.makedirs("output", exist_ok=True)
 
     with open(results_file, "a") as f:
         for alpha, eps, adaptive_segmentation, margin_overlap, min_area in itertools.product(alpha_values, eps_values, adaptive_options, margins_overlap, min_areas):
-            print(f"\n=== Ejecutando con alpha={alpha}, eps={eps}, adaptive_segmentation={adaptive_segmentation} ===\n")
+            print(f"\n=== Ejecutando con alpha={alpha}, eps={eps}, adaptive_segmentation={adaptive_segmentation}, margin_overlap={margin_overlap}, min_area={min_area} ===\n")
             
             # Load GT bboxes
             xml_file = 'AICity_data/ai_challenge_s03_c010-full_annotation.xml'
@@ -303,7 +345,7 @@ if __name__ == "__main__":
             gt_boxes = read_ground_truth(xml_file, classes, n_frames)
             gt_boxes_per_frame = convert_bbox_list_to_dict(gt_boxes)
 
-            segment_foreground("frames_output", mean, variance, gt_boxes_per_frame, alpha=alpha, eps=eps, min_samples=1, adaptive_segmentation=adaptive_segmentation, margin_overlap=margin_overlap, min_area=min_area)
+            segment_foreground("frames_output", mean, variance, mean_s, mean_v, gt_boxes_per_frame, alpha=alpha, eps=eps, min_samples=1, adaptive_segmentation=adaptive_segmentation, margin_overlap=margin_overlap, min_area=min_area)
 
             # Load pred bboxes
             bbox_results = f"bbox_results-alph_{alpha}-eps_{eps}-mov_{margin_overlap}-ma_{min_area}-adaptive_{adaptive_segmentation}.txt"
@@ -339,6 +381,6 @@ if __name__ == "__main__":
             
             # Calculate mAP
             mAP = calculate_mAP(aps)
-            print(f"mAP = {mAP} (alpha={alpha}, eps={eps}, adaptive_segmentation={adaptive_segmentation})\n")
-            f.write(f"mAP = {mAP} (alpha={alpha}, eps={eps}, adaptive_segmentation={adaptive_segmentation})\n")
+            print(f"mAP = {mAP} (alpha={alpha}, eps={eps}, adaptive_segmentation={adaptive_segmentation}, margin_overlap={margin_overlap}, min_area={min_area})\n")
+            f.write(f"mAP = {mAP} (alpha={alpha}, eps={eps}, adaptive_segmentation={adaptive_segmentation}, margin_overlap={margin_overlap}, min_area={min_area})\n")
 
