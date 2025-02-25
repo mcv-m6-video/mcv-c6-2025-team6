@@ -8,6 +8,7 @@ import random
 from tqdm import tqdm
 from sklearn.cluster import DBSCAN
 from collections import Counter
+import itertools
 
 def load_mean_variance(save_path):
     if os.path.exists(save_path):
@@ -53,7 +54,7 @@ def update_background_model(img_gray, mean, variance, background_mask, rho=0.05)
     variance[background_mask] = rho * (img_gray[background_mask] - mean[background_mask]) ** 2 + (1 - rho) * variance[background_mask]
     return mean, variance
 
-def segment_foreground(image_folder, mean, variance, alpha=2.5, eps=50, min_samples=3, adaptive_segmentation=False):
+def segment_foreground(image_folder, mean, variance, gt_boxes_per_frame, alpha=2.5, eps=50, min_samples=3, adaptive_segmentation=False, margin_overlap=15, min_area=2000):
     image_files = [f for f in os.listdir(image_folder) if f.endswith('.jpg')]
     num_images = len(image_files)
     sample_size = int(25 * num_images / 100)
@@ -80,7 +81,7 @@ def segment_foreground(image_folder, mean, variance, alpha=2.5, eps=50, min_samp
     previous_bboxes = []
     bbox_id_counter = 1
 
-    output_txt = open(os.path.join(output_dir, "bbox_results.txt"), "w")
+    output_txt = open(os.path.join(output_dir, f"bbox_results-alph_{alpha}-eps_{eps}-ms_{min_samples}-adaptive_{adaptive_segmentation}.txt"), "w")
 
     for img_file in tqdm(sample_images, desc="Processing Images", unit="image"):
         img_path = os.path.join(image_folder, img_file)
@@ -156,7 +157,7 @@ def segment_foreground(image_folder, mean, variance, alpha=2.5, eps=50, min_samp
                 
                 x, y, w, h = x_min, y_min, (x_max-x_min), (y_max-y_min)
                 if w > 60 or h > 60:
-                    if pixel_count > 2000:
+                    if pixel_count > min_area:
                         if (h/w < 1.1):
                             # print(f"Area ({x_min},{y_min}, {w}, {h}) of image {img_file}: {pixel_count}")
                             bbox_list.append([x, y, x + w, y + h])
@@ -197,8 +198,7 @@ def segment_foreground(image_folder, mean, variance, alpha=2.5, eps=50, min_samp
                         # Calc distance between bboxes and verify if it is lower than margin
                         dist_x = max(0, ox1 - x2) if ox1 > x2 else max(0, x1 - ox2)
                         dist_y = max(0, oy1 - y2) if oy1 > y2 else max(0, y1 - oy2)
-                        margin = 15
-                        if dist_x <= margin and dist_y <= margin:
+                        if dist_x <= margin_overlap and dist_y <= margin_overlap:
                             # Expand bbox to cover both
                             new_x1 = min(x1, ox1)
                             new_y1 = min(y1, oy1)
@@ -246,7 +246,8 @@ def segment_foreground(image_folder, mean, variance, alpha=2.5, eps=50, min_samp
                     bbox_id_counter += 1
 
                 current_bboxes.append([x1_min, y1_min, x2_max, y2_max, assigned_id])
-                output_txt.write(f"{(img_file.split('.')[0]).split('_')[1]},{assigned_id},{int(x1_min)},{int(y1_min)},{int(x2_max)-int(x1_min)},{int(y2_max)-int(y1_min)},-1,-1,-1,-1\n")
+                frame_id_str = (img_file.split('.')[0]).split('_')[1]
+                output_txt.write(f"{frame_id_str},{assigned_id},{int(x1_min)},{int(y1_min)},{int(x2_max)-int(x1_min)},{int(y2_max)-int(y1_min)},-1,-1,-1,-1\n")
 
             previous_bboxes = current_bboxes
 
@@ -260,7 +261,12 @@ def segment_foreground(image_folder, mean, variance, alpha=2.5, eps=50, min_samp
         
         cv2.imwrite(os.path.join(output_dir_clusters, f"clusters_detected_{img_file}"), img)
         cv2.imwrite(os.path.join(output_dir_masks, f"clusters_detected_{img_file}"), final_mask)
-
+        
+        for gt_bbox in gt_boxes_per_frame[int(frame_id_str)]:
+            x1, y1, w, h = gt_bbox
+            x2, y2 = x1 + w, y1 + h
+            cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)  # Azul para GT
+    
         # Blend original image with colored components
         blended = cv2.addWeighted(img, 0.7, colored_components, 0.5, 0)
         video_writer.write(blended)
@@ -274,48 +280,64 @@ if __name__ == "__main__":
     # extract_frames("AICity_data/train/S03/c010/vdo.avi", "frames_output", fps=10)
 
     mean, variance = pickle.load(open("mean_variance.pkl", "rb"))
-    segment_foreground("frames_output", mean, variance, alpha=3.5, eps=150, min_samples=1, adaptive_segmentation=True)
-    
-    # Load GT bboxes
-    xml_file = 'AICity_data/ai_challenge_s03_c010-full_annotation.xml'
-    classes = ['car'] # The other class is bike
-    path = 'frames_output/'
-    frames_list = sorted(os.listdir(path))
-    n_frames = len(frames_list)
-    gt_boxes = read_ground_truth(xml_file, classes, n_frames)
-    gt_boxes_per_frame = convert_bbox_list_to_dict(gt_boxes)
-    # Load pred bboxes
-    pred_boxes_per_frame = load_boxes_from_txt("output/bbox_results.txt")
 
-    # Create masks for bounding boxes of GT and Pred
-    image_width, image_height = 1920, 1080
-    gt_masks_per_frame = {frame_id: [create_mask_from_bbox(image_width, image_height, bbox, frame_id, idx, dataset='gt') for idx, bbox in enumerate(boxes)] 
-                    for frame_id, boxes in gt_boxes_per_frame.items()}
-    
-    image_width, image_height = 1920, 1080
-    pred_masks_per_frame = {frame_id: [create_mask_from_bbox(image_width, image_height, bbox, frame_id, idx) for idx, bbox in enumerate(boxes)] 
-                            for frame_id, boxes in pred_boxes_per_frame.items()}
-                            
-    aps = []
-    start_frame = int(len(gt_masks_per_frame)*0.25)
-    # Calc AP for each frame comparing predictions with GT
-    for frame_id in gt_boxes_per_frame.keys():
-        if frame_id < start_frame:
-            continue
-        
-        gt_masks = gt_masks_per_frame[frame_id]
+    alpha_values = [4]
+    eps_values = [150]
+    adaptive_options = [True, False]
+    margins_overlap = [15]
+    min_areas = [2000]
 
-        if frame_id in pred_boxes_per_frame:
-            pred_masks = pred_masks_per_frame[frame_id]    
-        else:
-            pred_masks = []
-        
-        if len(gt_masks) > 0 or len(pred_masks) > 0:
-            ap = compute_ap(gt_masks, pred_masks)
-            aps.append(ap)
-            # print(f"AP para el frame {frame_id}: {ap}")
-    
-    # Calcular el mAP usando la función calculate_mAP
-    mAP = calculate_mAP(aps)
-    print(f"mAP promedio: {mAP}")
+    results_file = "output/results.txt"
+    os.makedirs("output", exist_ok=True)
+
+    with open(results_file, "a") as f:
+        for alpha, eps, adaptive_segmentation, margin_overlap, min_area in itertools.product(alpha_values, eps_values, adaptive_options, margins_overlap, min_areas):
+            print(f"\n=== Ejecutando con alpha={alpha}, eps={eps}, adaptive_segmentation={adaptive_segmentation} ===\n")
+            
+            # Load GT bboxes
+            xml_file = 'AICity_data/ai_challenge_s03_c010-full_annotation.xml'
+            classes = ['car'] # The other class is bike
+            path = 'frames_output/'
+            frames_list = sorted(os.listdir(path))
+            n_frames = len(frames_list)
+            gt_boxes = read_ground_truth(xml_file, classes, n_frames)
+            gt_boxes_per_frame = convert_bbox_list_to_dict(gt_boxes)
+
+            segment_foreground("frames_output", mean, variance, gt_boxes_per_frame, alpha=alpha, eps=eps, min_samples=1, adaptive_segmentation=adaptive_segmentation, margin_overlap=margin_overlap, min_area=min_area)
+
+            # Load pred bboxes
+            pred_boxes_per_frame = load_boxes_from_txt("output/bbox_results.txt")
+
+            # Create masks for bounding boxes of GT and Pred
+            image_width, image_height = 1920, 1080
+            gt_masks_per_frame = {frame_id: [create_mask_from_bbox(image_width, image_height, bbox, frame_id, idx, dataset='gt') for idx, bbox in enumerate(boxes)] 
+                            for frame_id, boxes in gt_boxes_per_frame.items()}
+            
+            image_width, image_height = 1920, 1080
+            pred_masks_per_frame = {frame_id: [create_mask_from_bbox(image_width, image_height, bbox, frame_id, idx) for idx, bbox in enumerate(boxes)] 
+                                    for frame_id, boxes in pred_boxes_per_frame.items()}
+
+            aps = []
+            start_frame = int(len(gt_masks_per_frame)*0.25)
+            # Calc AP for each frame comparing predictions with GT
+            for frame_id in gt_boxes_per_frame.keys():
+                if frame_id < start_frame:
+                    continue
+                
+                gt_masks = gt_masks_per_frame[frame_id]
+
+                if frame_id in pred_boxes_per_frame:
+                    pred_masks = pred_masks_per_frame[frame_id]
+                else:
+                    pred_masks = []
+                
+                if len(gt_masks) > 0 or len(pred_masks) > 0:
+                    ap = compute_ap(gt_masks, pred_masks)
+                    aps.append(ap)
+                    # print(f"AP para el frame {frame_id}: {ap}")
+            
+            # Calculate mAP
+            mAP = calculate_mAP(aps)
+            print(f"mAP para alpha={alpha}, eps={eps}, adaptive_segmentation={adaptive_segmentation}: {mAP}\n")
+            f.write(f"mAP para alpha={alpha}, eps={eps}, adaptive_segmentation={adaptive_segmentation}: {mAP}\n")
 
