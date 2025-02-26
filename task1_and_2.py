@@ -160,10 +160,16 @@ def segment_foreground(image_folder, mean, variance, mean_s, mean_v, gt_boxes_pe
         # Apply shadow mask
         foreground_mask[shadow_mask] = 0
 
+        # if img_file == "frame_0546.jpg" or img_file == "frame_0560.jpg" or img_file == "frame_0664.jpg":
+        #     cv2.imwrite(f"output/no_init_filter_{img_file}", (~foreground_mask).astype(np.uint8) * 255)
+
         # 3. Connected Components + Filter by Size
         num_labels, labeled_image, stats, _ = cv2.connectedComponentsWithStats(foreground_mask.astype(np.uint8), connectivity=8)
         filtered_labels = [i for i in range(1, num_labels) if stats[i, cv2.CC_STAT_AREA] > 50]
         filtered_mask = np.isin(labeled_image, filtered_labels).astype(np.uint8)
+
+        # if img_file == "frame_0546.jpg" or img_file == "frame_0560.jpg" or img_file == "frame_0664.jpg":
+        #     cv2.imwrite(f"output/init_filter_{img_file}", (~(filtered_mask).astype(np.bool)).astype(np.uint8) * 255)
 
         # 4. Dilation
         kernel = np.ones((5, 5), np.uint8)
@@ -206,9 +212,10 @@ def segment_foreground(image_folder, mean, variance, mean_s, mean_v, gt_boxes_pe
                 
                 x, y, w, h = x_min, y_min, (x_max-x_min), (y_max-y_min)
                 if w > 60 or h > 60:
+                    # print(f"\nArea ({x_min},{y_min}, {w}, {h}) of image {img_file}: {pixel_count}")
                     if pixel_count > min_area:
                         if (h/w < 1.1):
-                            # print(f"Area ({x_min},{y_min}, {w}, {h}) of image {img_file}: {pixel_count}")
+                            # print(f"\nArea ({x_min},{y_min}, {w}, {h}) of image {img_file}: {pixel_count}")
                             bbox_list.append([x, y, x + w, y + h])
 
         # 7. Color components
@@ -312,7 +319,6 @@ def segment_foreground(image_folder, mean, variance, mean_s, mean_v, gt_boxes_pe
                 output_txt.write(f"{frame_id_str},{assigned_id},{int(x1_min)},{int(y1_min)},{int(x2_max)-int(x1_min)},{int(y2_max)-int(y1_min)},-1,-1,-1,-1\n")
 
             previous_bboxes = current_bboxes
-
             for bbox in current_bboxes:
                 x1, y1, x2, y2, bbox_id = bbox
                 cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
