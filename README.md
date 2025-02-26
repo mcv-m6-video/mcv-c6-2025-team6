@@ -62,3 +62,42 @@ Recommended Configuration:
 - margin_overlap = 10
 - min_area = 2000
 - rho = 0.05
+
+#### Task3: Comparison with SOTA
+
+Here's a summary of the models used:
+
+1. **BackgroundSubtractorMOG**: Gaussian Mixture Models for background/foreground segmentation.
+2. **BackgroundSubtractorMOG2**: Enhanced version with shadow detection.
+3. **BackgroundSubtractorLSBP**: Uses Local SVD Binary Patterns for subtraction.
+4. **BackgroundSubtractorKNN**: K-nearest neighbors for detecting moving objects.
+5. **BackgroundSubtractorGMG**: Gaussian Mixture-based model with decision thresholds.
+6. **BackgroundSubtractorGSOC**: Google Summer of Code model using sample replacement and propagation.
+7. **BackgroundSubtractorCNT**: Uses pixel stability and history for background subtraction.
+
+Each model has hyperparameters that affect detection accuracy, such as history, threshold values, and pixel stability.
+
+**Optuna** is used for hyperparameter optimization.  
+**Mask cleaning** is done using median blurring and morphological operations, improving the accuracy by removing noise like moving shadows, trees, reflections, etc.
+
+### Recommended GSOC Hyperparameters:
+- `mc`: 6
+- `nSamples`: 29
+- `replaceRate`: 0.007
+- `propagationRate`: 0.008
+
+These values help improve the detection accuracy when using the GSOC background subtraction model.
+
+<div style="display: flex; justify-content: space-between;">
+    <div style="width: 48%; text-align: center;">
+        <p><strong>GSOC Sample Result</strong></p>
+        <img src="output_GSOC.gif" alt="GSOC Sample Result" style="width: 100%; height: auto;">
+    </div>
+    <div style="width: 48%; text-align: center;">
+        <p><strong>Motion Detection</strong></p>
+        <img src="output_GSOC_bb.gif" alt="Moving Objects Detection" style="width: 100%; height: auto;">
+    </div>
+</div>
+
+**REFERENCE for models**: [OpenCV Background Subtraction](https://docs.opencv.org/4.x/d1/dc5/tutorial_background_subtraction.html)
+
