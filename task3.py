@@ -134,11 +134,12 @@ class BackgroundSubtractorFactory:
             pass
         else:
             raise ValueError(f"Unsupported method: {method}")
+        
 
 def save_bounding_boxes(bbox_info, output_path):
     """
     bbox_info is a list of lists where each list contains bounding boxes for a frame.
-    Each bounding box is represented as [xtl, ytl, xbr, ybr].
+    Each bounding box is represented as [x, y, w, h].
     """
     with open(output_path, 'w') as f:
         for frame_id, frame_bboxes in enumerate(bbox_info):
@@ -149,7 +150,6 @@ def save_bounding_boxes(bbox_info, output_path):
 def apply_background_subtraction(method, frame_folder, output_folder, trial_number, **hyperparameters):
     
     fgbg = BackgroundSubtractorFactory.create(method, **hyperparameters)
-
     output_path = f"{output_folder}/trial_{trial_number}_{method}"
     if not os.path.exists(output_path):
         os.makedirs(output_path)
@@ -193,7 +193,7 @@ def apply_background_subtraction(method, frame_folder, output_folder, trial_numb
 
         
 
-def main(method='MOG',video_path='dataset/AICity_data/AICity_data/train/S03/c010/vdo.avi', frames_path='output_frames', output_folder='output_results', trial_number=1):
+def main(method='MOG',video_path='dataset/AICity_data/AICity_data/train/S03/c010/vdo.avi', frames_path='output_frames', output_folder='output_results', trial_number=1,**hyperparameters):
     
     #extract_frames(video_path,frames_path)
     results_file = "output/results.txt"
@@ -210,7 +210,7 @@ def main(method='MOG',video_path='dataset/AICity_data/AICity_data/train/S03/c010
             gt_boxes_per_frame = convert_bbox_list_to_dict(gt_boxes)
 
             # apply background subtraction and save the frames with bounding boxes
-            apply_background_subtraction(method, frames_path, output_folder, trial_number)
+            apply_background_subtraction(method, frames_path, output_folder, trial_number,**hyperparameters)
         
             pred_boxes_per_frame = load_boxes_from_txt(os.path.join(f"{output_folder}/trial_{trial_number}_{method}", '_bbox_results.txt'))
 
@@ -246,6 +246,6 @@ def main(method='MOG',video_path='dataset/AICity_data/AICity_data/train/S03/c010
             f.write(f"mAP = {mAP},{method}\n")
     
 
-#if __name__ == "__main__":
+if __name__ == "__main__":
 
-    #main(method='Lobster', frames_path='output_frames', output_folder='output_results', trial_number=8)
+    main(method='GSOC', frames_path='output_frames', output_folder='output_results_final', trial_number=1,mc= 6, nSamples= 29, replaceRate = 0.006674758581370798, propagationRate=0.008221579091711412)

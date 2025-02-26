@@ -5,11 +5,7 @@ import os
 from tqdm import tqdm
 from task3 import apply_background_subtraction
 
-def optimize_background_subtractor(trial, method='MOG', video_path='dataset/AICity_data/AICity_data/train/S03/c010/vdo.avi', frames_path='output_frames', output_folder='output_results', trial_number=1):
-    """
-    Objective function for Optuna optimization.
-    This function applies the background subtractor and returns the mAP for evaluation.
-    """
+def optimize_background_subtractor(trial, method='MOG', frames_path='output_frames', output_folder='output_results', trial_number=1):
 
     if method == 'MOG':
         history = trial.suggest_int('history', 100, 500)
