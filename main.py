@@ -99,7 +99,7 @@ def update_background_model(img_gray, img_s, img_v, mean, variance, mean_s, mean
 
     return mean, variance, mean_s, mean_v
 
-def segment_foreground(image_folder, mean, variance, mean_s, mean_v, gt_boxes_per_frame, alpha=2.5, eps=50, min_samples=3, adaptive_segmentation=False, margin_overlap=15, min_area=2000):
+def segment_foreground(image_folder, mean, variance, mean_s, mean_v, gt_boxes_per_frame, alpha=2.5, eps=50, min_samples=3, adaptive_segmentation=False, margin_overlap=15, min_area=2000, rho=0.05):
     image_files = [f for f in os.listdir(image_folder) if f.endswith('.jpg')]
     num_images = len(image_files)
     sample_size = int(25 * num_images / 100)
@@ -114,18 +114,25 @@ def segment_foreground(image_folder, mean, variance, mean_s, mean_v, gt_boxes_pe
     os.makedirs(output_dir, exist_ok=True)
     output_dir_videos = os.path.join(output_dir, "videos")
     os.makedirs(output_dir_videos, exist_ok=True)
-    output_dir_clusters = os.path.join(output_dir, f"bboxes_clusters_-alph_{alpha}-eps_{eps}-mov_{margin_overlap}-ma_{min_area}-adaptive_{adaptive_segmentation}")
+    output_dir_clusters = os.path.join(output_dir, f"bboxes_clusters_-alph_{alpha}-eps_{eps}-mov_{margin_overlap}-ma_{min_area}-adaptive_{adaptive_segmentation}-rho_{rho}")
     os.makedirs(output_dir_clusters, exist_ok=True)
-    output_dir_masks = os.path.join(output_dir, f"masks_-alph_{alpha}-eps_{eps}-mov_{margin_overlap}-ma_{min_area}-adaptive_{adaptive_segmentation}")
+    output_dir_masks = os.path.join(output_dir, f"masks_-alph_{alpha}-eps_{eps}-mov_{margin_overlap}-ma_{min_area}-adaptive_{adaptive_segmentation}-rho_{rho}")
     os.makedirs(output_dir_masks, exist_ok=True)
 
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    output_video = os.path.join(output_dir_videos, f"video_bbox-alph_{alpha}-eps_{eps}-mov_{margin_overlap}-ma_{min_area}-adaptive_{adaptive_segmentation}.avi")
+    output_video = os.path.join(output_dir_videos, f"video_bbox-alph_{alpha}-eps_{eps}-mov_{margin_overlap}-ma_{min_area}-adaptive_{adaptive_segmentation}-rho_{rho}.avi")
     video_writer = cv2.VideoWriter(output_video, fourcc, 20.0, (width, height))
+
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    output_video_mask = os.path.join(output_dir_videos, f"video_bbox_mask-alph_{alpha}-eps_{eps}-mov_{margin_overlap}-ma_{min_area}-adaptive_{adaptive_segmentation}-rho_{rho}.avi")
+    video_writer_mask = cv2.VideoWriter(output_video_mask, fourcc, 20.0, (width, height))
+
+
 
     previous_bboxes = []
     bbox_id_counter = 1
-    bbox_results = f"bbox_results-alph_{alpha}-eps_{eps}-mov_{margin_overlap}-ma_{min_area}-adaptive_{adaptive_segmentation}.txt"
+    # bbox_results = f"bbox_results-alph_{alpha}-eps_{eps}-mov_{margin_overlap}-ma_{min_area}-adaptive_{adaptive_segmentation}-rho_{rho}.txt"
+    bbox_results = f"bbox_results-adaptive_{adaptive_segmentation}-rho_{rho}.txt"
     output_txt = open(os.path.join(output_dir, bbox_results), "w")
 
     for img_file in tqdm(sample_images, desc="Processing Images", unit="image"):
@@ -142,13 +149,13 @@ def segment_foreground(image_folder, mean, variance, mean_s, mean_v, gt_boxes_pe
         h, s, v = cv2.split(img_hsv)
         SD = np.abs(s - mean_s) / (mean_s + 1e-6)
         BD = v / (mean_v + 1e-6)
-        shadow_mask = (SD <= 3) & (0.4 <= BD) & (BD <= 0.9)
+        shadow_mask = (SD <= 0.6) & (0.4 <= BD) & (BD <= 0.9)
 
         # 2. Foreground segmentation
         foreground_mask = np.abs(img_gray - mean) >= alpha * (np.sqrt(variance) + 2)
         if adaptive_segmentation:
             background_mask = ~foreground_mask
-            mean, variance, mean_s, mean_v = update_background_model(img_gray, s, v, mean, variance, mean_s, mean_v, background_mask)
+            mean, variance, _, _ = update_background_model(img_gray, s, v, mean, variance, mean_s, mean_v, background_mask, rho=rho)
 
         # Apply shadow mask
         foreground_mask[shadow_mask] = 0
@@ -211,6 +218,8 @@ def segment_foreground(image_folder, mean, variance, mean_s, mean_v, gt_boxes_pe
             colored_components[labeled_image_redilated == label_id] = color
 
         frame_id_str = (img_file.split('.')[0]).split('_')[1]
+        
+        final_mask_rgb = cv2.cvtColor(final_mask * 255, cv2.COLOR_GRAY2RGB)
         # 8. Final filtering of bboxes
         if bbox_list:
             bbox_list = np.array(bbox_list)
@@ -218,6 +227,7 @@ def segment_foreground(image_folder, mean, variance, mean_s, mean_v, gt_boxes_pe
 
             # Filter small bbox inside others or expand bbox if overlap
             filtered_bbox_list = []
+            black_box_threshold = 50
             for bbox in bbox_list:
                 x1, y1, x2, y2 = bbox
                 is_inside = False
@@ -233,9 +243,12 @@ def segment_foreground(image_folder, mean, variance, mean_s, mean_v, gt_boxes_pe
                         pixel_count = np.sum(region == 1)
                         confidence_score = combined_confidence([new_x1, new_y1, new_x2, new_y2], pixel_count, final_mask.shape)
             
-                        filtered_bbox_list[i] = [new_x1, new_y1, new_x2, new_y2, confidence_score]
-                        is_inside = True
-
+                        # Filter out bbox if mean value is too low
+                        region_black_box = img[new_y1:new_y2, new_x1:new_x2, :]
+                        mean_black_box = np.mean(region_black_box)
+                        if mean_black_box > black_box_threshold:
+                            filtered_bbox_list[i] = [new_x1, new_y1, new_x2, new_y2, confidence_score]
+                            is_inside = True
                         break
                     else:
                         # Calc distance between bboxes and verify if it is lower than margin
@@ -252,20 +265,27 @@ def segment_foreground(image_folder, mean, variance, mean_s, mean_v, gt_boxes_pe
                             pixel_count = np.sum(region == 1)
                             confidence_score = combined_confidence([new_x1, new_y1, new_x2, new_y2], pixel_count, final_mask.shape)
 
-                            filtered_bbox_list[i] = [new_x1, new_y1, new_x2, new_y2, confidence_score]
-                            is_inside = True
+                            # Filter out bbox if mean value is too low
+                            region_black_box = img[new_y1:new_y2, new_x1:new_x2, :]
+                            mean_black_box = np.mean(region_black_box)
+                            if mean_black_box > black_box_threshold:
+                                filtered_bbox_list[i] = [new_x1, new_y1, new_x2, new_y2, confidence_score]
+                                is_inside = True
                             break
                 
                 if not is_inside:
                     region = final_mask[y1:y2, x1:x2]
                     pixel_count = np.sum(region == 1)
                     confidence_score = combined_confidence([x1, y1, x2, y2], pixel_count, final_mask.shape)
-
-                    filtered_bbox_list.append([x1, y1, x2, y2, confidence_score])
+                    # Filter out bbox if mean value is too low
+                    region_black_box = img[y1:y2, x1:x2, :]
+                    mean_black_box = np.mean(region_black_box)
+                    if mean_black_box > black_box_threshold:
+                        filtered_bbox_list.append([x1, y1, x2, y2, confidence_score])
 
             bbox_list = np.array(filtered_bbox_list)
-            indices_ordenados = np.argsort(bbox_list[:, -1])[::-1]
-            bbox_list = bbox_list[indices_ordenados]    # Sort by confidence score
+            # indices_ordenados = np.argsort(bbox_list[:, -1])[::-1]
+            # bbox_list = bbox_list[indices_ordenados]    # Sort by confidence score
             
             final_mask = final_mask * 255
 
@@ -298,22 +318,23 @@ def segment_foreground(image_folder, mean, variance, mean_s, mean_v, gt_boxes_pe
                 cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
                 cv2.putText(img, f'ID: {bbox_id}', (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                 
-                cv2.rectangle(final_mask, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
-                cv2.putText(final_mask, f'ID: {bbox_id}', (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
+                cv2.rectangle(final_mask_rgb, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 3)
+                cv2.putText(final_mask_rgb, f'ID: {bbox_id}', (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
         
-        # cv2.imwrite(os.path.join(output_dir_clusters, f"clusters_detected_{img_file}"), img)
-        # cv2.imwrite(os.path.join(output_dir_masks, f"clusters_detected_{img_file}"), final_mask)
-        
+        cv2.imwrite(os.path.join(output_dir_clusters, f"clusters_detected_{img_file}"), img)
+        cv2.imwrite(os.path.join(output_dir_masks, f"clusters_detected_{img_file}"), final_mask_rgb)
         for gt_bbox in gt_boxes_per_frame[int(frame_id_str)-1]:
             x1, y1, w, h = gt_bbox
             x2, y2 = x1 + w, y1 + h
             cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)  # Azul para GT
-    
+
         # Blend original image with colored components
         blended = cv2.addWeighted(img, 0.7, colored_components, 0.5, 0)
         video_writer.write(blended)
+        video_writer_mask.write(final_mask_rgb)
 
     video_writer.release()
+    video_writer_mask.release()
     output_txt.close()
     print("Processing completed.")
     print(f"Video saved in {output_video} and bbox results saved in {bbox_results}")
@@ -323,18 +344,19 @@ if __name__ == "__main__":
 
     mean, variance, mean_s, mean_v = pickle.load(open("output/mean_variance.pkl", "rb"))
 
-    alpha_values = [6]
-    eps_values = [80]
+    alpha_values = [3, 4, 5]
+    eps_values = [150]
     adaptive_options = [True]
     margins_overlap = [10]
-    min_areas = [3500]
+    min_areas = [2000]
+    rhos = [0.01, 0.05, 0.2]
 
     results_file = "output/results.txt"
     os.makedirs("output", exist_ok=True)
 
     with open(results_file, "a") as f:
-        for alpha, eps, adaptive_segmentation, margin_overlap, min_area in itertools.product(alpha_values, eps_values, adaptive_options, margins_overlap, min_areas):
-            print(f"\n=== Ejecutando con alpha={alpha}, eps={eps}, adaptive_segmentation={adaptive_segmentation}, margin_overlap={margin_overlap}, min_area={min_area} ===\n")
+        for alpha, eps, adaptive_segmentation, margin_overlap, min_area, rho in itertools.product(alpha_values, eps_values, adaptive_options, margins_overlap, min_areas, rhos):
+            print(f"\n=== Ejecutando con alpha={alpha}, eps={eps}, adaptive_segmentation={adaptive_segmentation}, margin_overlap={margin_overlap}, min_area={min_area}, rho={rho} ===\n")
             
             # Load GT bboxes
             xml_file = 'AICity_data/ai_challenge_s03_c010-full_annotation.xml'
@@ -345,10 +367,10 @@ if __name__ == "__main__":
             gt_boxes = read_ground_truth(xml_file, classes, n_frames)
             gt_boxes_per_frame = convert_bbox_list_to_dict(gt_boxes)
 
-            segment_foreground("frames_output", mean, variance, mean_s, mean_v, gt_boxes_per_frame, alpha=alpha, eps=eps, min_samples=1, adaptive_segmentation=adaptive_segmentation, margin_overlap=margin_overlap, min_area=min_area)
+            segment_foreground("frames_output", mean, variance, mean_s, mean_v, gt_boxes_per_frame, alpha=alpha, eps=eps, min_samples=1, adaptive_segmentation=adaptive_segmentation, margin_overlap=margin_overlap, min_area=min_area, rho=rho)
 
             # Load pred bboxes
-            bbox_results = f"bbox_results-alph_{alpha}-eps_{eps}-mov_{margin_overlap}-ma_{min_area}-adaptive_{adaptive_segmentation}.txt"
+            bbox_results = f"bbox_results-adaptive_{adaptive_segmentation}-rho_{rho}.txt"
             pred_boxes_per_frame = load_boxes_from_txt(os.path.join("output", bbox_results))
 
             # Create masks for bounding boxes of GT and Pred
@@ -381,6 +403,6 @@ if __name__ == "__main__":
             
             # Calculate mAP
             mAP = calculate_mAP(aps)
-            print(f"mAP = {mAP} (alpha={alpha}, eps={eps}, adaptive_segmentation={adaptive_segmentation}, margin_overlap={margin_overlap}, min_area={min_area})\n")
-            f.write(f"mAP = {mAP} (alpha={alpha}, eps={eps}, adaptive_segmentation={adaptive_segmentation}, margin_overlap={margin_overlap}, min_area={min_area})\n")
+            print(f"mAP = {mAP} (alpha={alpha}, eps={eps}, adaptive_segmentation={adaptive_segmentation}, margin_overlap={margin_overlap}, min_area={min_area}, rho_{rho})\n")
+            f.write(f"mAP = {mAP} (alpha={alpha}, eps={eps}, adaptive_segmentation={adaptive_segmentation}, margin_overlap={margin_overlap}, min_area={min_area}, rho_{rho})\n")
 
