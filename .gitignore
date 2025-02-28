@@ -1,5 +1,13 @@
+data/*
 AICity_data/*
 frames_output/*
 output/*
+w1/output/*
+*.jpg
+*.png
+*.gif
+*.avi
+*.mp4
 __pycache__/*
+w1/__pycache__/*
 *.pkl
