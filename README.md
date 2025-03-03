@@ -2,7 +2,7 @@
 
 This repository contains the code for the **C6 - Team 6** project.
 
-##Project Structure
+## Project Structure
 
 ### Week 1 - Background Estimation and Stauffer & Grimson  
 Refer to the [`README.md`](w1/README.md) file in the corresponding folder for detailed instructions.
