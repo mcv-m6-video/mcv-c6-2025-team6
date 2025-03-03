@@ -11,3 +11,4 @@ w1/output/*
 __pycache__/*
 w1/__pycache__/*
 *.pkl
+w2/yolov3/*
