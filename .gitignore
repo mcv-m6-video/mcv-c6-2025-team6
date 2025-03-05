@@ -8,6 +8,9 @@ w1/output/*
 *.gif
 *.avi
 *.mp4
+*.txt
+*.zip
+*/output
 __pycache__/*
 w1/__pycache__/*
 *.pkl
