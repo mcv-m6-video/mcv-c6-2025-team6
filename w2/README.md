@@ -45,8 +45,6 @@ This project contains the following main Python scripts or Jupyter notebooks:
 ### Usage
 #### Task 1: Object detection
 ##### `YOLO` 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mcv-c6-2025-team6/week2/blob/main/1_1_and_1_2_yolo.ipynb)
-
 To run Task 1 and Task 2 for `YOLO`, you need to set specific parameters depending on the method you want to use (`YOLOv3` or `YOLOv5x6`). Below is a guide on which parameters to modify and the best configurations for each approach.
 ###### Task 1.1: 'Off-the-shelf' model
 Run detection on the video file using the following command, where `MODEL.pt` should be `yolov3.pt` or `yolov5x6.pt`:
@@ -74,7 +72,8 @@ python yolov3/train.py --img 1280 --batch 4 --epochs 20 --data yolov3/data/AICit
 ```
 This will fine-tune the selected model using the AICity dataset.
 ##### `Faster R-CNN` (`Detectron2`) 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mcv-c6-2025-team6/week2/blob/main/task1_1_and_1_2_fasrcnn.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1F7qtLkDfGcMvYYJG6vzCo8pLxjUnfVPS?usp=sharing)
+
 ###### Task 1.1 & 1.2
 The Faster R-CNN implementation is provided in a Jupyter Notebook designed to run in `Google Colab`. The notebook is structured into sections corresponding to:
 - Task 1.1: Running the model off-the-shelf.
