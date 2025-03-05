@@ -39,8 +39,8 @@ This project contains the following main Python scripts or Jupyter notebooks:
 - task1_1_and_1_2_fasrcnn.ipynb: contains the development of tasks 1.1 and 1.2 implemented using `Detectron2` for `Faster R-CNN`.
 - task1_3.py:
 - utils.py: This file contains utility functions used by 1.1, 1.2 and 1.3.
-- task2_1.py:
-- task2_3.py:
+- task2_1.py: This script tracks objects in video frames using Maximum Overlap.
+- task2_3.py: This script processes video frames and tracks objects using the SORT (Simple Online and Realtime Tracking) tracker.
 
 ### Usage
 #### Task 1: Object detection
@@ -80,3 +80,21 @@ The Faster R-CNN implementation is provided in a Jupyter Notebook designed to ru
 - Task 1.2: Fine-tuning the model on the AICity dataset.
 To use it, open the notebook in `Google Colab` and follow the provided instructions.
 #### Task 2: Object tracking
+To run the object tracking methods (Tasks 2.1 and 2.2), you need to modify specific parameters in the main script before execution.
+##### Initial Configuration
+Before running the scripts, update the following variables in the main script:
+- `input_folder`: Path to the folder containing the extracted video frames.
+- `txt_file`: Path to the text file with detected bounding box data.
+- `output_folder`: Path to the folder where processed frames, the output video with tracking applied, and generated data will be saved.
+##### Task 2.1: Tracking using Maximum Overlap
+This method assigns detections based on the highest overlap between bounding boxes of detected objects in consecutive frames.
+Before running the script, you can adjust the following parameters to fine-tune the tracking performance:
+- `threshold_iou` (default: 0.4): IoU threshold for matching bounding boxes between consecutive frames.
+- `overlap_threshold` (default: 0.9): Threshold for filtering out excessively overlapping bounding boxes.
+- `movement_threshold` (default: 3.0): Minimum movement required for an object to be considered in tracking.
+- `static_frame_threshold`: Number of frames an object can remain stationary before being removed.
+##### Task 2.2: Tracking using SORT Tracker
+This method utilizes the SORT, an algorithm based on Kalman Filters to estimate object trajectories.
+Modify the following parameters in the script before execution:
+- `max_age` (default: 10): Maximum number of frames an object can remain undetected before being removed from tracking.
+- `min_hits` (default: 3): Minimum number of consecutive frames an object must be detected before being considered a valid track.
