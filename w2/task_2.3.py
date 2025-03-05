@@ -114,6 +114,6 @@ def main(gt_path, det_path):
     print("Identity Score:", results['IDF1'])
     
 if __name__ == "__main__":
-    main("../AICity_data/ai_challenge_s03_c010-full_annotation.xml",
+    main("gt_track.txt",
           "tracking_data_2.1.txt")
     
