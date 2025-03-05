@@ -37,9 +37,11 @@ pip install -qr requirements.txt comet_ml
 This project contains the following main Python scripts or Jupyter notebooks:
 - task1_1_and_1_2_yolo.ipynb: contains the development of tasks 1.1 and 1.2 implemented using `YOLOv3` and `YOLOv5x6`.
 - task1_1_and_1_2_fasrcnn.ipynb: contains the development of tasks 1.1 and 1.2 implemented using `Detectron2` for `Faster R-CNN`.
+- task1_3.py:
 - utils.py: This file contains utility functions used by 1.1, 1.2 and 1.3.
 - task2_1.py: This script tracks objects in video frames using Maximum Overlap.
-- task2_3.py: This script processes video frames and tracks objects using the SORT (Simple Online and Realtime Tracking) tracker.
+- task2_2.py: This script processes video frames and tracks objects using the SORT (Simple Online and Realtime Tracking) tracker.
+- task2_3.py: This script implements the HOTA metrics for evaluating tracking performance, based on the repository [TrackEval](https://github.com/JonathonLuiten/TrackEval) and [Team 8's](https://github.com/mcv-m6-video/mcv-c6-2025-team8) contribution.
 
 ### Usage
 #### Task 1: Object detection
@@ -70,15 +72,6 @@ Then, run training using the following command, where `MODEL.pt` should be `yolo
 python yolov3/train.py --img 1280 --batch 4 --epochs 20 --data yolov3/data/AICity.yaml --weights MODEL.pt
 ```
 This will fine-tune the selected model using the AICity dataset.
-###### Task 1.3: K-fold cross validation
-We implemented three strategies:
-- Strategy A: We train using the first 25% of the dataset.
-- Strategy B: The dataset is split into four equal sequential folds (25% each). Each fold is used for training while the remaining are used for testing.
-- Strategy C: Instead of using sequential frames, we randomly select 25% of the dataset for training and the rest for testing.
-To execute each strategy, modify the dataset split accordingly and run the training command, ensuring the file `AICity.yaml` contains the correct paths for each strategy:
-```
-python yolov3/train.py --img 1280 --batch 4 --epochs 20 --data yolov3/data/AICity.yaml --weights yolov5x6.pt
-``` 
 ##### `Faster R-CNN` (`Detectron2`) 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1F7qtLkDfGcMvYYJG6vzCo8pLxjUnfVPS?usp=sharing)
 
