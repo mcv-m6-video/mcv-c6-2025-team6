@@ -8,15 +8,19 @@ Add the AICity_data folder at the same level of the main.py script. The data sho
 ```
 data
 └───AICity_data
-    └───train
-    |   └───S03
-    |       └───c010
-    |           └───vdo.avi
-    |           └───frames
-    |               ├── frame_0001.jpg
-    |               ├── frame_0002.jpg
-    |               ├── ...
-    └───ai_challenge_s03_c010-full_annotation.xml
+|   └───train
+|   |   └───S03
+|   |       └───c010
+|   |           └───vdo.avi
+|   |           └───frames
+|   |               ├── frame_0001.jpg
+|   |               ├── frame_0002.jpg
+|   |               ├── ...
+|   └───ai_challenge_s03_c010-full_annotation.xml
+└───KITTI-Flow-2012
+    └───000045_10.jpg
+    └───000045_11.jpg
+    └───000045_gt.jpg
 ```
 We cannot always process video files directly, so you may need to extract frames from vdo.avi before running object detection.
 
@@ -42,13 +46,10 @@ Additionally, clone the [`FlowFormer`](https://github.com/drinkingcoder/FlowForm
 
 ### Week Structure
 This project contains the following main Python scripts or Jupyter notebooks:
-- task_1_1_pyflow.py: 
-- task_1_2.py:
-- task_2_inference.py: 
-- task_2_tracking.py:
-- task_2_sort.py: 
+- task_1_1_pyflow.py: optical flow estimation with pyflow method.
+- task_1_2.py: tracking with optical flow and overlap IoU based.
+- task_2_inference.py: yolov11 object detection inference.
+- task_2_tracking.py: This script processes video frames, tracks objects using the SORT tracker
+- task_2_sort.py: This file contains utility functions used in task 2.
 - task_2_utils.py: This file contains utility functions used in task 2.
 - task_2_eval.py: This script implements the HOTA metrics for evaluating tracking performance, based on the repository [TrackEval](https://github.com/JonathonLuiten/TrackEval) and [Team 8's](https://github.com/mcv-m6-video/mcv-c6-2025-team8) contribution.
-
-### Usage
-#### Task 1: Optical flow estimation
