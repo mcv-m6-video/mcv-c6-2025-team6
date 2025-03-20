@@ -52,3 +52,17 @@ def read_bounding_boxes_from_file(txt_file):
                 frame_data[frame_num] = []
             frame_data[frame_num].append([x1, y1, x2-x1, y2-y1])
     return frame_data
+
+def read_bounding_boxes_from_file_sort(txt_file):
+    frame_data = {}
+    with open(txt_file, 'r') as f:
+        for line in f:
+            parts = line.strip().split(',')
+            frame_num = int(parts[0])
+            # class_id = int(parts[1])
+            x1, y1, w, h = map(int, parts[1:])
+            # score = float(parts[6])
+            if frame_num not in frame_data:
+                frame_data[frame_num] = []
+            frame_data[frame_num].append([x1, y1, w, h])
+    return frame_data
