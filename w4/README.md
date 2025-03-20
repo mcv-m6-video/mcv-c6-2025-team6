@@ -2,7 +2,7 @@
 
 ## Project Description
 
-This project implements a multi-camera tracking and detection system, designed to track objects across multiple frames and camera views. It integrates various object detection and tracking algorithms, including YOLO (You Only Look Once) for real-time object detection, SORT (Simple Online and Realtime Tracking) , BotSort and ByteTrack for object tracking, and Re-identification (ReID) for maintaining consistent object identities across multiple frames. 
+This project implements a multi-camera tracking and detection system, designed to track objects across multiple frames and camera views. It integrates various object detection and tracking algorithms, including YOLOv11 for object detection, SORT (Simple Online and Realtime Tracking) , BotSort and ByteTrack for object tracking, and Re-identification (ReID) for maintaining consistent object identities across multiple frames. 
 
 The system is flexible and can handle different types of video input, making it applicable to various real-time applications such as surveillance.
 
