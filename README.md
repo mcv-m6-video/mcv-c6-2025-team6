@@ -1,7 +1,7 @@
 # C6 - Team 6
 
 This repository contains the code for the **C6 - Team 6** project.
-
+Final Presentation [https://docs.google.com/presentation/d/1RUKkzOrQmABhCukWLFkK-zCQgO6OX5abMakMOx30c3U/edit?usp=sharing]
 ## Project Structure
 
 ### Week 1 - Background Estimation and Stauffer & Grimson  
