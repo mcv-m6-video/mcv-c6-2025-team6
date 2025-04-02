@@ -1,0 +1,23 @@
+{
+  "batch_size": 4,
+  "chkpoint_dir": "",
+  "clip_len": 50,
+  "dataset": "soccernetball",
+  "device": "cuda",
+  "early_stop_patience": 5,
+  "epoch_num_frames": 500000,
+  "feature_arch": "rny002",
+  "frame_dir": "C:/Users/maria/Documents/BCN/Master/CV/C6/Project/w1/mcv-c6-2025-team6/w5/frames/398x224",
+  "labels_dir": "C:/Users/maria/Documents/BCN/Master/CV/C6/Project/w1/mcv-c6-2025-team6/w5/labels",
+  "learning_rate": 0.0008,
+  "num_classes": 12,
+  "num_epochs": 1,
+  "num_workers": 0,
+  "only_test": false,
+  "save_dir": "C:/Users/maria/Documents/BCN/Master/CV/C6/Project/w1/mcv-c6-2025-team6/w5/results",
+  "store_mode": "load",
+  "stride": 2,
+  "task": "classification",
+  "temp_rep": "max_pool",
+  "warm_up_epochs": 3
+}

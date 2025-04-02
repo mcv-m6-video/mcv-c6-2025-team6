@@ -1,0 +1,23 @@
+{
+  "batch_size": 4,
+  "chkpoint_dir": "",
+  "clip_len": 50,
+  "dataset": "soccernetball",
+  "device": "cuda",
+  "early_stop_patience": 5,
+  "epoch_num_frames": 500000,
+  "feature_arch": "effnet_b0",
+  "frame_dir": "/ghome/c5mcv04/w5/frames/398x224",
+  "labels_dir": "/ghome/c5mcv04/w5/labels",
+  "learning_rate": 0.0003,
+  "num_classes": 12,
+  "num_epochs": 30,
+  "num_workers": 4,
+  "only_test": false,
+  "save_dir": "/ghome/c5mcv04/w5/results",
+  "store_mode": "load",
+  "stride": 2,
+  "task": "classification",
+  "temp_rep": "max_pool",
+  "warm_up_epochs": 3
+}
