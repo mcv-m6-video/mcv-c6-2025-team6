@@ -1,6 +1,6 @@
 # C6 - Team 6 - Week 7
 
-[Final Presentation - w5-7](w7/FinalPresentation.pdf)
+[Final Presentation - w5-7](FinalPresentation.pdf)
 
 This repository is based on [CVMasterActionRecognitionSpotting](https://github.com/arturxe2/CVMasterActionRecognitionSpotting). The modified files for this week include implementations focused on *ball action spotting*, exploring various architectural strategies to improve temporal precision and feature representation.
 
