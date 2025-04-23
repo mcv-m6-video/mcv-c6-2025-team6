@@ -14,6 +14,18 @@ Refer to the [`README.md`](w2/README.md) file in the corresponding folder for de
 ### Week 3 - Object Tracking with Optical Flow & Multi-target single-camera (MTSC) tracking
 Refer to the [`README.md`](w3/README.md) file in the corresponding folder for detailed instructions.
 
+### Week 4 - Multi-Camera Tracking and Detection
+Refer to the [`README.md`](w4/README.md) file in the corresponding folder for detailed instructions.
+
+### Week 5 - Ball Action Classification
+Refer to the [`README.md`](w5/README.md) file in the corresponding folder for detailed instructions.
+
+### Week 6 - Ball Action Spotting
+Refer to the [`README.md`](w6/README.md) file in the corresponding folder for detailed instructions.
+
+### Week 7 - Ball Action Spotting
+Refer to the [`README.md`](w7/README.md) file in the corresponding folder for detailed instructions.
+
 ℹ️ **Instructions**:  
 Each week has its own README with specific guidelines. Make sure to check the corresponding files before running the code.
 
